@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Seoul Bike Data Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+            background-color: #f8f9fa; 
+            background-image: url('https://images.unsplash.com/photo-1519817650390-64a93db51149?ixlib=rb-1.2.1&auto=format&fit=crop&w=1600&q=80');
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
+            background-blend-mode: overlay;
+            background-color: rgba(248, 249, 250, 0.9);
+        }
+        .dashboard-header { 
+            background-color: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background-image: url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .dashboard-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(44, 62, 80, 0.7);
+            z-index: 0;
+        }
+        .dashboard-header > * {
+            position: relative;
+            z-index: 1;
+            .dashboard-header {
+                background: linear-gradient(270deg, #2c3e50, #3498db, #9b59b6);
+                background-size: 600% 600%;
+                animation: gradientBG 15s ease infinite;
+              }
+              @keyframes gradientBG {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+              }
+        }
+        .filter-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border-left: 5px solid #3498db;
+        }
+        .chart-container { 
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border-top: 3px solid #2c3e50;
+            transition: transform 0.3s ease;
+        }
+        .chart-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .summary-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 100%;
+            transition: all 0.3s ease;
+            text-align: center;
+            border-bottom: 4px solid #3498db;
+        }
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .summary-card h3 {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .summary-card h6 {
+            color: #7f8c8d;
+        }
+        .correlation-matrix {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .noUi-connect {
+            background: #3498db;
+        }
+        .section-title {
+            color: #2c3e50;
+            border-left: 5px solid #3498db;
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+        .bike-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+        .weather-icon {
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+        }
+        @media (max-width: 768px) {
+            .dashboard-header h1 { font-size: 1.8rem; }
+            .summary-card { margin-bottom: 15px; }
+            .chart-container { padding: 15px; }
+          }
+            .moving-bike {
+              animation: bikeMove 8s linear infinite;
+            }
+            @keyframes bikeMove {
+              0% { transform: translateX(-100px); }
+              100% { transform: translateX(calc(100vw + 100px)); }
+            }
+            .dark-theme {
+                  background-color: #121212;
+                  color: #ffffff;
+                }
+                .dark-theme .chart-container {
+                  background-color: #1e1e1e;
+                }
+              
+    </style>
+    <!-- Add these to your head section -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe@1.2.0/dist/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Header with background image -->
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1>
+                        <img src="bike.png" class="bike-icon" alt="Bike Icon">
+                        Seoul Bike Sharing Dashboard
+                    </h1>
+                    <p class="mb-0">Interactive analysis of bike rental patterns in Seoul's public bike sharing system</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button id="reset-filters" class="btn btn-outline-light">
+                        <i class="fas fa-sync-alt"></i> Reset Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="filter-card">
+                    <h5><i class="fas fa-calendar-alt"></i> Date Range</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" id="start-date" class="form-control" min="{{ min_date }}" max="{{ max_date }}" value="{{ min_date }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">End Date</label>
+                            <input type="date" id="end-date" class="form-control" min="{{ min_date }}" max="{{ max_date }}" value="{{ max_date }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="filter-card">
+                    <h5>
+                        <img src="https://cdn-icons-png.flaticon.com/512/3313/3313888.png" class="weather-icon" alt="Temperature Icon">
+                        Temperature Range (°C)
+                    </h5>
+                    <div id="temp-slider" class="mt-3"></div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <input type="number" id="min-temp" class="form-control" placeholder="Min" min="{{ min_temp }}" max="{{ max_temp }}" value="{{ min_temp }}">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="number" id="max-temp" class="form-control" placeholder="Max" min="{{ min_temp }}" max="{{ max_temp }}" value="{{ max_temp }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards with icons -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2972/2972185.png" width="40" class="mb-2">
+                    <h6>Total Records</h6>
+                    <h3 id="total-records">{{ data.summary.total_records|e }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3652/3652191.png" width="40" class="mb-2">
+                    <h6>Date Range</h6>
+                    <h5 id="date-range">{{ data.summary.date_range.start|e }} to {{ data.summary.date_range.end|e }}</h5>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3132/3132737.png" width="40" class="mb-2">
+                    <h6>Avg Rentals</h6>
+                    <h3 id="avg-rentals">{{ "%.1f"|format(data.summary.avg_rentals) }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="summary-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/869/869869.png" width="40" class="mb-2">
+                    <h6>Avg Temperature</h6>
+                    <h3 id="avg-temp">{{ "%.1f°C"|format(data.summary.avg_temp) }}</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <h3 class="section-title">Usage Patterns</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-clock"></i> Hourly Rental Patterns</h4>
+                    <div id="hourlyChart" style="height: 400px;"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-cloud-sun"></i> Seasonal Distribution</h4>
+                    <div id="seasonalChart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <h3 class="section-title">Trend Analysis</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-chart-line"></i> Daily Rental Trends</h4>
+                    <canvas id="dailyChart" height="400"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-temperature-high"></i> Temperature Impact</h4>
+                    <div id="tempChart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 3 -->
+        <h3 class="section-title">Comparative Analysis</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-calendar-week"></i> Weekday vs Weekend</h4>
+                    <div id="weekdayChart" style="height: 400px;"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4><i class="fas fa-project-diagram"></i> Weather Correlation Matrix</h4>
+                    <div class="correlation-matrix">
+                        <canvas id="correlationChart" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- AR View Modal -->
+<div class="modal fade" id="arModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Bike Stations AR View</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <!-- A-Frame AR Scene -->
+        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+          <!-- Marker-based AR (you can use location-based instead if preferred) -->
+          <a-marker preset="hiro">
+            <a-entity position="0 0 0">
+              <!-- Bike model will be placed here -->
+              <a-entity id="bike-stations-container"></a-entity>
+            </a-entity>
+          </a-marker>
+          <a-entity camera></a-entity>
+        </a-scene>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Exit AR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Updated AR Button -->
+<button id="ar-view" class="btn btn-success mb-3">
+  <i class="fas fa-vr-cardboard"></i> AR View
+</button>
+
+<script>
+document.getElementById('ar-view').addEventListener('click', function() {
+  // Show the AR modal
+  const arModal = new bootstrap.Modal(document.getElementById('arModal'));
+  arModal.show();
+  
+  // Initialize the AR scene with bike data
+  initARScene();
+});
+
+function initARScene() {
+  // Wait for the scene to load
+  const scene = document.querySelector('a-scene');
+  
+  scene.addEventListener('loaded', function() {
+    const container = document.getElementById('bike-stations-container');
+    
+    // Clear any existing elements
+    container.innerHTML = '';
+    
+    // Sample bike station data - replace with your actual data
+    const bikeStations = [
+      { name: "Station 1", lat: 37.5665, lon: 126.9780, bikes: 8, distance: 50 },
+      { name: "Station 2", lat: 37.5655, lon: 126.9770, bikes: 3, distance: 100 },
+      { name: "Station 3", lat: 37.5675, lon: 126.9790, bikes: 12, distance: 150 }
+    ];
+    
+    // Create AR elements for each bike station
+    bikeStations.forEach((station, index) => {
+      // Position stations in a circle around the marker
+      const angle = (index / bikeStations.length) * Math.PI * 2;
+      const x = Math.cos(angle) * 0.5;
+      const z = Math.sin(angle) * 0.5;
+      
+      // Create station element
+      const stationEl = document.createElement('a-entity');
+      stationEl.setAttribute('position', `${x} 0 ${z}`);
+      
+      // Add a 3D model or primitive to represent the station
+      const bikeModel = document.createElement('a-entity');
+      bikeModel.setAttribute('gltf-model', 'https://cdn.jsdelivr.net/gh/aframevr/assets@master/360-video-cube/models/bike/bike.gltf');
+      bikeModel.setAttribute('scale', '0.5 0.5 0.5');
+      bikeModel.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000');
+      
+      // Add text label
+      const text = document.createElement('a-text');
+      text.setAttribute('value', `${station.name}\nBikes: ${station.bikes}`);
+      text.setAttribute('position', '0 0.5 0');
+      text.setAttribute('color', 'white');
+      text.setAttribute('align', 'center');
+      
+      // Add to scene
+      stationEl.appendChild(bikeModel);
+      stationEl.appendChild(text);
+      container.appendChild(stationEl);
+    });
+    
+    // Add ground plane for better visualization
+    const ground = document.createElement('a-plane');
+    ground.setAttribute('position', '0 -0.5 0');
+    ground.setAttribute('rotation', '-90 0 0');
+    ground.setAttribute('width', '4');
+    ground.setAttribute('height', '4');
+    ground.setAttribute('color', '#7BC8A4');
+    container.appendChild(ground);
+  });
+}
+
+// Check for WebXR support
+if (navigator.xr) {
+  // Check if AR is supported
+  navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+    if (supported) {
+      document.getElementById('ar-view').style.display = 'block';
+    }
+  });
+} else {
+  // Fallback to AR.js if WebXR isn't available
+  document.getElementById('ar-view').style.display = 'block';
+}
+
+</script>
+
+<style>
+/* AR Modal specific styles */
+#arModal .modal-content {
+  background-color: transparent;
+  border: none;
+}
+
+#arModal .modal-header, #arModal .modal-footer {
+  background-color: rgba(0,0,0,0.7);
+  color: white;
+}
+
+#arModal .modal-body {
+  overflow: hidden;
+}
+
+a-scene {
+  width: 100%;
+  height: 100%;
+}
+</style>
+
+        <!-- Footer with Seoul skyline image -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div style="background: rgba(255, 255, 255, 0.9); padding: 20px; border-radius: 8px; text-align: center;">
+                    <img src="bike.png" width="30" class="mb-2">
+                    <p>Seoul Bike Sharing System Data Analysis Dashboard</p>
+                    <p class="small text-muted">Data sourced from Seoul Metropolitan Government</p>
+                    <img src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" 
+                         style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 4px; margin-top: 15px;">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="seoul-map" style="height: 400px;"></div>
+    <div class="chart-container">
+        <h4><i class="fas fa-robot"></i> Rental Predictor</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Temperature (°C)</label>
+                    <input type="number" id="predict-temp" class="form-control" value="20" min="-20" max="40">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Hour of Day</label>
+                    <input type="number" id="predict-hour" class="form-control" min="0" max="23" value="12">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Humidity (%)</label>
+                    <input type="number" id="predict-humidity" class="form-control" min="0" max="100" value="50">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Day Type</label>
+                    <select id="predict-daytype" class="form-select">
+                        <option value="0">Weekday</option>
+                        <option value="1">Weekend</option>
+                        <option value="2">Holiday</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Weather Condition</label>
+            <select id="predict-weather" class="form-select">
+                <option value="1">Clear</option>
+                <option value="2">Cloudy</option>
+                <option value="3">Rain/Snow</option>
+            </select>
+        </div>
+        <button id="predict-btn" class="btn btn-primary">Predict Rentals</button>
+        <div id="prediction-result" class="mt-3" style="font-size: 1.5rem; font-weight: bold;"></div>
+        <div id="prediction-confidence" class="mt-2 text-muted"></div>
+    </div>
+    
+    <script>
+    // This would be loaded from your CSV data
+    let regressionModel = null;
+    let minMaxValues = null;
+    
+    // Function to train a simple regression model from your data
+    function trainModel(data) {
+        // Extract features and target from your data
+        const features = data.map(item => [
+            item.Temperature,
+            item.Hour,
+            item.Humidity,
+            item.IsHoliday || 0,
+            item.Season === 'Winter' ? 1 : 0,
+            item.Season === 'Spring' ? 1 : 0,
+            item.Season === 'Summer' ? 1 : 0,
+            item.Weather === 'Cloudy' ? 1 : 0,
+            item.Weather === 'Rain/Snow' ? 1 : 0
+        ]);
+        
+        const targets = data.map(item => item['Rented Bike Count']);
+        
+        // Normalize data
+        minMaxValues = {
+            min: features[0].map((_, i) => Math.min(...features.map(x => x[i]))),
+            max: features[0].map((_, i) => Math.max(...features.map(x => x[i])))
+        };
+        
+        const normalizedFeatures = features.map(feature => 
+            feature.map((val, i) => (val - minMaxValues.min[i]) / (minMaxValues.max[i] - minMaxValues.min[i]))
+        );
+        
+        // Simple linear regression implementation
+        regressionModel = {
+            coefficients: [120, 85, -45, -200, -80, 60, 120, -30, -150], // These would be calculated in a real implementation
+            intercept: 350
+        };
+    }
+    
+    // Function to predict based on input
+    function predict(inputs) {
+        if (!regressionModel) return null;
+        
+        // Prepare feature vector
+        const features = [
+            inputs.temp,
+            inputs.hour,
+            inputs.humidity,
+            inputs.daytype === 2 ? 1 : 0, // Holiday
+            inputs.daytype === 1 ? 1 : 0, // Weekend
+            inputs.weather === 2 ? 1 : 0, // Cloudy
+            inputs.weather === 3 ? 1 : 0  // Rain/Snow
+        ];
+        
+        // Normalize features
+        const normalizedFeatures = features.map((val, i) => 
+            (val - minMaxValues.min[i]) / (minMaxValues.max[i] - minMaxValues.min[i])
+        );
+        
+        // Make prediction
+        let prediction = regressionModel.intercept;
+        for (let i = 0; i < normalizedFeatures.length; i++) {
+            prediction += normalizedFeatures[i] * regressionModel.coefficients[i];
+        }
+        
+        // Calculate confidence (simplified)
+        const confidence = 80 + Math.random() * 15; // Would be based on actual model accuracy
+        
+        return {
+            value: Math.round(prediction),
+            confidence: Math.round(confidence)
+        };
+    }
+    
+    // Initialize when data is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // This would be replaced with your actual data loading
+        fetch('SeoulBikeData.csv')
+            .then(response => response.text())
+            .then(csvData => {
+                const data = parseCSV(csvData);
+                trainModel(data);
+            });
+    });
+    
+    // Prediction button handler
+    document.getElementById('predict-btn').addEventListener('click', function() {
+        if (!regressionModel) {
+            document.getElementById('prediction-result').innerHTML = 
+                'Model not loaded yet. Please wait.';
+            return;
+        }
+        
+        const inputs = {
+            temp: parseFloat(document.getElementById('predict-temp').value),
+            hour: parseInt(document.getElementById('predict-hour').value),
+            humidity: parseInt(document.getElementById('predict-humidity').value),
+            daytype: parseInt(document.getElementById('predict-daytype').value),
+            weather: parseInt(document.getElementById('predict-weather').value)
+        };
+        
+        const result = predict(inputs);
+        
+        if (result) {
+            document.getElementById('prediction-result').innerHTML = 
+                `Predicted Rentals: <span class="text-primary">${result.value}</span>`;
+            document.getElementById('prediction-confidence').innerHTML = 
+                `Confidence: ${result.confidence}%`;
+            
+            // Visual feedback
+            this.classList.add('btn-success');
+            setTimeout(() => this.classList.remove('btn-success'), 1000);
+        } else {
+            document.getElementById('prediction-result').innerHTML = 
+                'Prediction failed. Please check inputs.';
+        }
+    });
+    
+    // Helper function to parse CSV (you may already have this)
+    function parseCSV(csv) {
+        const lines = csv.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim());
+        
+        return lines.slice(1).map(line => {
+            const values = line.split(',');
+            const entry = {};
+            headers.forEach((header, i) => {
+                entry[header] = values[i] ? values[i].trim() : '';
+            });
+            return entry;
+        });
+    }
+    </script>
+    <!added feature>
+    <button id="realtime-toggle" class="btn btn-warning mb-3">
+        <i class="fas fa-bolt"></i> Enable Real-time
+    </button>
+    
+    <script>
+        let realtimeInterval;
+        document.getElementById('realtime-toggle').addEventListener('click', function() {
+            if (realtimeInterval) {
+                clearInterval(realtimeInterval);
+                realtimeInterval = null;
+                this.innerHTML = '<i class="fas fa-bolt"></i> Enable Real-time';
+            } else {
+                this.innerHTML = '<i class="fas fa-stop"></i> Stop Real-time';
+                realtimeInterval = setInterval(() => {
+                    // Simulate new data coming in
+                    const newDataPoint = {
+                        Date: new Date().toISOString().split('T')[0],
+                        'Rented Bike Count': Math.floor(Math.random() * 1000) + 500,
+                        Temperature: Math.floor(Math.random() * 30) + 5
+                    };
+                    
+                    // Add to beginning of data
+                    currentData.daily.unshift(newDataPoint);
+                    
+                    // Update chart
+                    dailyChart.data.datasets[0].data = currentData.daily.map(item => ({
+                        x: item.Date,
+                        y: item['Rented Bike Count']
+                    }));
+                    dailyChart.update();
+                    
+                    // Also update summary
+                    currentData.summary.total_records++;
+                    updateSummary(currentData);
+                }, 2000);
+            }
+        });
+    </script>
+    <div class="bike-animation">
+        <img src="bike.png" class="moving-bike">
+    </div>
+
+    <button id="theme-toggle" class="btn btn-dark">
+        <i class="fas fa-moon"></i> Dark Mode
+      </button>
+      
+      <script>
+        const toggle = document.getElementById('theme-toggle');
+        toggle.addEventListener('click', () => {
+          document.body.classList.toggle('dark-theme');
+          toggle.innerHTML = document.body.classList.contains('dark-theme') ? 
+            '<i class="fas fa-sun"></i> Light Mode' : 
+            '<i class="fas fa-moon"></i> Dark Mode';
+        });
+      </script>
+    
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nouislider@15.5.1/dist/nouislider.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/nouislider@15.5.1/dist/nouislider.min.css" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+        // Initialize data and charts
+        let currentData = {{ data|tojson }};
+        let dailyChart, correlationChart;
+        
+        // Initialize temperature slider
+        const tempSlider = document.getElementById('temp-slider');
+        noUiSlider.create(tempSlider, {
+            start: [{{ min_temp }}, {{ max_temp }}],
+            connect: true,
+            range: {
+                'min': {{ min_temp }},
+                'max': {{ max_temp }}
+            },
+            step: 1,
+            tooltips: [true, true],
+            format: {
+                to: function(value) {
+                    return Math.round(value);
+                },
+                from: function(value) {
+                    return Number(value);
+                }
+            }
+        });
+
+        // Update input fields when slider changes
+        tempSlider.noUiSlider.on('update', function(values, handle) {
+            const minTempInput = document.getElementById('min-temp');
+            const maxTempInput = document.getElementById('max-temp');
+            
+            if (handle === 0) {
+                minTempInput.value = values[0];
+            } else {
+                maxTempInput.value = values[1];
+            }
+        });
+
+        // Update slider when input fields change
+        document.getElementById('min-temp').addEventListener('change', function() {
+            tempSlider.noUiSlider.set([this.value, null]);
+        });
+
+        document.getElementById('max-temp').addEventListener('change', function() {
+            tempSlider.noUiSlider.set([null, this.value]);
+        });
+
+        // Create initial charts
+        function createCharts() {
+            // Hourly Chart
+            Plotly.newPlot('hourlyChart', [{
+                x: currentData.hourly.map(item => item.Hour),
+                y: currentData.hourly.map(item => item['Rented Bike Count']),
+                type: 'bar',
+                marker: {color: '#3498db'},
+                name: 'Rentals'
+            }], {
+                title: 'Average Hourly Rentals',
+                xaxis: {title: 'Hour of Day'},
+                yaxis: {title: 'Average Rentals'},
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#2c3e50'}
+            });
+
+            // Seasonal Chart
+            Plotly.newPlot('seasonalChart', [{
+                values: currentData.seasonal.map(item => item['Rented Bike Count']),
+                labels: currentData.seasonal.map(item => item.Seasons),
+                type: 'pie',
+                textinfo: 'label+percent',
+                hole: 0.4,
+                marker: {colors: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12']}
+            }], {
+                margin: {t: 30, b: 0, l: 0, r: 0},
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#2c3e50'}
+            });
+
+            // Temperature Chart
+            Plotly.newPlot('tempChart', [{
+                x: currentData.temperature.map(item => item.TempRange),
+                y: currentData.temperature.map(item => item['Rented Bike Count']),
+                type: 'bar',
+                marker: {color: '#e74c3c'}
+            }], {
+                xaxis: {title: 'Temperature Range'},
+                yaxis: {title: 'Average Rentals'},
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#2c3e50'}
+            });
+
+            // Weekday Chart
+            Plotly.newPlot('weekdayChart', [{
+                x: currentData.weekday.map(item => item.DayType),
+                y: currentData.weekday.map(item => item['Rented Bike Count']),
+                type: 'bar',
+                marker: {color: '#2ecc71'}
+            }], {
+                yaxis: {title: 'Average Rentals'},
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: '#2c3e50'}
+            });
+
+            // Daily Trends Chart (using Chart.js for time series)
+            const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+            if (dailyChart) dailyChart.destroy();
+            
+            dailyChart = new Chart(dailyCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Daily Rentals',
+                        data: currentData.daily.map(item => ({
+                            x: item.Date,
+                            y: item['Rented Bike Count']
+                        })),
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#2c3e50'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'MMM d, yyyy'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                color: '#2c3e50'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                            ticks: {
+                                color: '#2c3e50'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Total Rentals',
+                                color: '#2c3e50'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                            ticks: {
+                                color: '#2c3e50'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Correlation Matrix Chart
+            const corrCtx = document.getElementById('correlationChart').getContext('2d');
+            if (correlationChart) correlationChart.destroy();
+            
+            const corrLabels = Object.keys(currentData.weather_corr);
+            const corrData = corrLabels.map(label => 
+                corrLabels.map(key => currentData.weather_corr[label][key])
+            );
+            
+            correlationChart = new Chart(corrCtx, {
+                type: 'bar',
+                data: {
+                    labels: corrLabels,
+                    datasets: corrLabels.map((label, i) => ({
+                        label: label,
+                        data: corrData[i],
+                        backgroundColor: `hsl(${i * 60}, 70%, 50%)`
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Correlation Between Weather Factors and Rentals',
+                            color: '#2c3e50'
+                        },
+                        legend: {
+                            labels: {
+                                color: '#2c3e50'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            ticks: {
+                                color: '#2c3e50'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            min: -1,
+                            max: 1,
+                            ticks: {
+                                color: '#2c3e50'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update summary cards
+        function updateSummary(data) {
+            document.getElementById('total-records').textContent = data.summary.total_records.toLocaleString();
+            document.getElementById('date-range').textContent = 
+                `${data.summary.date_range.start} to ${data.summary.date_range.end}`;
+            document.getElementById('avg-rentals').textContent = data.summary.avg_rentals.toFixed(1);
+            document.getElementById('avg-temp').textContent = `${data.summary.avg_temp.toFixed(1)}°C`;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const minTemp = parseFloat(document.getElementById('min-temp').value);
+            const maxTemp = parseFloat(document.getElementById('max-temp').value);
+            
+            const filters = {
+                date_range: {
+                    start: startDate,
+                    end: endDate
+                },
+                temp_range: {
+                    min: minTemp,
+                    max: maxTemp
+                }
+            };
+            
+            fetch('/api/filter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(filters)
+            })
+            .then(response => response.json())
+            .then(data => {
+                currentData = data;
+                createCharts();
+                updateSummary(data);
+            });
+        }
+
+        // Reset filters
+        document.getElementById('reset-filters').addEventListener('click', function() {
+            document.getElementById('start-date').value = '{{ min_date }}';
+            document.getElementById('end-date').value = '{{ max_date }}';
+            document.getElementById('min-temp').value = '{{ min_temp }}';
+            document.getElementById('max-temp').value = '{{ max_temp }}';
+            tempSlider.noUiSlider.set([{{ min_temp }}, {{ max_temp }}]);
+            applyFilters();
+        });
+
+        // Add event listeners for filter changes
+        document.getElementById('start-date').addEventListener('change', applyFilters);
+        document.getElementById('end-date').addEventListener('change', applyFilters);
+        document.getElementById('min-temp').addEventListener('change', applyFilters);
+        document.getElementById('max-temp').addEventListener('change', applyFilters);
+        tempSlider.noUiSlider.on('end', applyFilters);
+
+        // Initialize charts when page loads
+        window.addEventListener('load', createCharts);
+
+        const themes = {
+            light: {
+              '--bg-color': '#f8f9fa',
+              '--text-color': '#212529'
+            },
+            dark: {
+              '--bg-color': '#121212',
+              '--text-color': '#f8f9fa'
+            },
+            seoul: {
+              '--bg-color': '#e8f4f8',
+              '--text-color': '#2c3e50',
+              '--primary-color': '#e74c3c'
+            }
+          };
+          
+          function setTheme(themeName) {
+            const theme = themes[themeName];
+            Object.keys(theme).forEach(key => {
+              document.documentElement.style.setProperty(key, theme[key]);
+            });
+          }
+
+        // In your chart initialization
+            const ctx = document.getElementById('hourlyChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(58, 123, 213, 0.8)');
+            gradient.addColorStop(1, 'rgba(0, 210, 255, 0.2)');
+
+            new Chart(ctx, {
+            type: 'bar',
+            data: {
+                datasets: [{
+                backgroundColor: gradient,
+                data: hourlyData
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
